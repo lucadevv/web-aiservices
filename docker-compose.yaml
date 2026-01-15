@@ -1,0 +1,40 @@
+services:
+  # 1. Tu Frontend Next.js
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # IMPORTANTE: Las variables NEXT_PUBLIC_* se inyectan en tiempo de BUILD
+      # Si necesitas cambiarlas, debes reconstruir la imagen:
+      # docker compose build --build-arg NEXT_PUBLIC_API_URL=http://nueva-url
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://172.19.5.20:8000}
+        - NEXT_PUBLIC_ENCRYPTION_KEY=${NEXT_PUBLIC_ENCRYPTION_KEY:-your-default-secret-key}
+    container_name: iacom_frontend
+    restart: always
+    # Variables de entorno en tiempo de ejecución (para variables que NO sean NEXT_PUBLIC_*)
+    # env_file:
+    #   - .env
+    networks:
+      - app-network
+    # No exponemos el puerto 3000 al mundo exterior, solo a la red interna de docker
+    # Nginx hablará con este contenedor por la red interna
+
+  # 2. Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: iacom_frontend_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    networks:
+      - app-network
+
+# Red interna para que se entiendan los contenedores
+networks:
+  app-network:
+    driver: bridge
